@@ -1,0 +1,7 @@
+# Ignorar archivos de macOS
+.DS_Store
+
+# Ignorar archivos temporales
+*.swp
+*.bak
+*~
