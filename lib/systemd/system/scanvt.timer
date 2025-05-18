@@ -1,0 +1,11 @@
+
+[Unit]
+Description=Generador de timer dinámico para scanvt
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

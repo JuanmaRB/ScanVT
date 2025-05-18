@@ -1,0 +1,11 @@
+
+[Unit]
+Description=Servicio de escaneo con ClamAV y VirusTotal
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/scanvt
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

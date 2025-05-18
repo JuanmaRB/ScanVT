@@ -1,0 +1,7 @@
+
+[Unit]
+Description=Genera el timer dinámico según configuración de scanvt
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/scanvt/update_timer.sh

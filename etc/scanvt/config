@@ -1,0 +1,18 @@
+
+# API de VirusTotal
+VT_API_KEY="TU_API_KEY"
+
+# Carpeta(s) a escanear (usar array bash)
+SCAN_DIRS=("/home" "/var/www")
+
+# Cantidad de días para considerar archivos modificados recientemente
+SCAN_DAYS=10
+
+# Hora de escaneo diario (formato 24h: HH:MM)
+SCAN_HOUR="03:00"
+
+# Días de la semana en los que se ejecuta el escaneo (ej: Mon,Tue,Wed)
+SCAN_DAYS_OF_WEEK="Mon,Tue,Wed,Thu,Fri,Sat,Sun"
+
+# Correo electrónico para alertas
+MAIL_DEST="admin@tudominio.com"

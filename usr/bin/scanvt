@@ -1,0 +1,94 @@
+
+#!/bin/bash
+
+CONFIG_FILE="/etc/scanvt/config"
+LOG_FILE="/var/log/scanvt/scan.log"
+HASH_CACHE="/var/cache/scanvt/hashes.txt"
+WHITELIST="/var/cache/scanvt/whitelist.txt"
+QUAR_DIR="/var/quarantine"
+FIRST_SCAN_FLAG="/var/cache/scanvt/.first_scan_done"
+CSV_DIR="/root/scanvt"
+TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
+CSV_FILE="$CSV_DIR/scanvt_report_$TIMESTAMP.csv"
+THRESHOLD=1
+
+mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$HASH_CACHE")" "$QUAR_DIR" "$CSV_DIR"
+touch "$HASH_CACHE" "$WHITELIST"
+echo "Archivo,Hash,Detecciones,Estado,Fecha" > "$CSV_FILE"
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Archivo de configuración no encontrado: $CONFIG_FILE"
+    exit 1
+fi
+
+source "$CONFIG_FILE"
+
+echo "[$(date)] >>> Escaneo iniciado" >> "$LOG_FILE"
+
+for DIR in "${SCAN_DIRS[@]}"; do
+    if [[ ! -f "$FIRST_SCAN_FLAG" ]]; then
+        echo "[INFO] Ejecutando escaneo completo inicial en $DIR" >> "$LOG_FILE"
+        find "$DIR" -type f -print0 |
+        while IFS= read -r -d '' file; do
+    else
+        echo "[INFO] Ejecutando escaneo por archivos recientes (últimos $SCAN_DAYS días) en $DIR" >> "$LOG_FILE"
+        find "$DIR" -type f -mtime -"${SCAN_DAYS}" -print0 |
+        while IFS= read -r -d '' file; do
+    fi
+        echo "[INFO] Escaneando $file" >> "$LOG_FILE"
+
+        clamscan --no-summary "$file" | grep -q FOUND
+        if [[ $? -eq 0 ]]; then
+            echo "[ALERTA] ClamAV detectó amenaza: $file" >> "$LOG_FILE"
+
+            HASH=$(sha256sum "$file" | awk '{print $1}')
+            echo "[INFO] SHA256: $HASH" >> "$LOG_FILE"
+
+            if grep -q "$HASH" "$WHITELIST"; then
+                echo "[INFO] Hash en whitelist. Ignorando archivo." >> "$LOG_FILE"
+                echo "$file,$HASH,0,Whitelist,$(date)" >> "$CSV_FILE"
+                continue
+            fi
+
+            if grep -q "$HASH" "$HASH_CACHE"; then
+                echo "[INFO] Hash ya consultado. Saltando consulta." >> "$LOG_FILE"
+                echo "$file,$HASH,?,Cache,$(date)" >> "$CSV_FILE"
+                continue
+            fi
+
+            echo "$HASH" >> "$HASH_CACHE"
+
+            ORIG_PATH="$file"
+            FILE_NAME=$(basename "$file")
+            QUAR_FILE="$QUAR_DIR/$FILE_NAME"
+            mv "$file" "$QUAR_FILE"
+
+            VT_RESPONSE=$(curl --silent --request GET                     --url "https://www.virustotal.com/api/v3/files/$HASH"                     --header "x-apikey: $VT_API_KEY")
+
+            POSITIVES=$(echo "$VT_RESPONSE" | jq '.data.attributes.last_analysis_stats.malicious // 0')
+
+            if [[ "$POSITIVES" -gt "$THRESHOLD" ]]; then
+                echo "[MALWARE] Confirmado ($POSITIVES motores). Archivo permanece en cuarentena." >> "$LOG_FILE"
+                echo "$file,$HASH,$POSITIVES,Malware,$(date)" >> "$CSV_FILE"
+                echo -e "🚨 Malware detectado:\nArchivo: $ORIG_PATH\nHash: $HASH\nDetecciones: $POSITIVES\nMovido a: $QUAR_FILE\nFecha: $(date)"                     | mail -s "[Alerta ClamAV] Malware confirmado" "$MAIL_DEST"
+            else
+                echo "[FALSO POSITIVO] Solo $POSITIVES motores. Restaurando archivo y agregando a whitelist." >> "$LOG_FILE"
+                echo "$HASH" >> "$WHITELIST"
+                mv "$QUAR_FILE" "$ORIG_PATH"
+                echo "$file,$HASH,$POSITIVES,Falso Positivo,$(date)" >> "$CSV_FILE"
+                echo -e "⚠️ Falso positivo:\nArchivo: $ORIG_PATH\nHash: $HASH\nDetecciones: $POSITIVES\nRestaurado\nFecha: $(date)"                     | mail -s "[ClamAV] Falso positivo restaurado" "$MAIL_DEST"
+            fi
+        fi
+    done
+done
+
+# Control de limpieza de cuarentena
+if [[ "$QUAR_RETENTION_DAYS" =~ ^[0-9]+$ && "$QUAR_RETENTION_DAYS" -gt 0 ]]; then
+    echo "[INFO] Eliminando archivos de cuarentena mayores a $QUAR_RETENTION_DAYS días" >> "$LOG_FILE"
+    find "$QUAR_DIR" -type f -mtime +"$QUAR_RETENTION_DAYS" -exec rm -f {} \;
+else
+    echo "[INFO] No se eliminarán archivos de cuarentena automáticamente" >> "$LOG_FILE"
+fi
+
+touch "$FIRST_SCAN_FLAG"
+echo "[$(date)] >>> Escaneo finalizado" >> "$LOG_FILE"

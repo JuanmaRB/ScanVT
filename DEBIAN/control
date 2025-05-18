@@ -1,0 +1,9 @@
+
+Package: scanvt
+Version: 1.0
+Section: admin
+Priority: optional
+Architecture: all
+Depends: clamav, jq, curl, mailutils
+Maintainer: Juan Manuel Biglia <juanma.biglia@gmail.com>
+Description: Escaneo antivirus con ClamAV + verificación en VirusTotal con restauración automática de falsos positivos.
