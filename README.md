@@ -14,6 +14,20 @@
 - Soporte para múltiples directorios configurables.
 - Configuración centralizada en `/etc/scanvt/config`.
 
+
+## 🔑 Cómo obtener tu API key de VirusTotal
+
+1. Ir a [https://www.virustotal.com/gui/join-us](https://www.virustotal.com/gui/join-us) y crear una cuenta gratuita.
+2. Una vez registrado, iniciá sesión.
+3. Hacé clic en tu avatar (arriba a la derecha) y elegí **API Key**.
+4. Copiá la clave que aparece y pegala en el archivo `/etc/scanvt/config`:
+
+```bash
+VT_API_KEY="tu_clave_api_aqui"
+```
+
+⚠️ La API gratuita de VirusTotal tiene límites: 500 consultas por día y 4 por minuto.
+
 ## 📦 Instalación
 
 ### Desde paquete .deb
