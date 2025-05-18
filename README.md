@@ -19,7 +19,7 @@
 ### Desde paquete .deb
 
 ```bash
-sudo dpkg -i scanvt_1.6_all.deb
+sudo dpkg -i scanvt_1.0_all.deb
 sudo systemctl daemon-reexec
 sudo systemctl enable --now scanvt-generate.service scanvt.timer
 ```
